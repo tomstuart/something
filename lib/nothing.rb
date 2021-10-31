@@ -1,4 +1,17 @@
 module Nothing
+  # In the original “Programming with Nothing”, Ruby evaluated some of the
+  # top-level calls at definition time. Here we intend to evaluate everything
+  # ourselves so we’d like to ensure that no evaluation happens until we’re
+  # explicitly ready for it. The #defer helper method does this by wrapping an
+  # expression in a do-nothing proc so that it can’t start evaluating
+  # prematurely.
+
+  using Module.new {
+    refine Kernel do
+      def defer = -> x { yield[x] }
+    end
+  }
+
   # https://tomstu.art/programming-with-nothing#numbers
 
   ZERO  = -> p { -> x {       x    } }
@@ -40,15 +53,17 @@ module Nothing
             [-> x { f[-> y { x[x][y] }] }] }
 
   MOD =
-    Z[-> f { -> m { -> n {
-      IF[IS_LESS_OR_EQUAL[n][m]][
-        -> x {
-          f[SUBTRACT[m][n]][n][x]
-        }
-      ][
-        m
-      ]
-    } } }]
+    defer do
+      Z[-> f { -> m { -> n {
+        IF[IS_LESS_OR_EQUAL[n][m]][
+          -> x {
+            f[SUBTRACT[m][n]][n][x]
+          }
+        ][
+          m
+        ]
+      } } }]
+    end
 
   # https://tomstu.art/programming-with-nothing#lists-briefly
 
@@ -56,7 +71,7 @@ module Nothing
   LEFT  = -> p { p[-> x { -> y { x } } ] }
   RIGHT = -> p { p[-> x { -> y { y } } ] }
 
-  EMPTY     = PAIR[TRUE][TRUE]
+  EMPTY     = defer { PAIR[TRUE][TRUE] }
   UNSHIFT   = -> l { -> x {
                 PAIR[FALSE][PAIR[x][l]]
               } }
@@ -65,30 +80,34 @@ module Nothing
   REST      = -> l { RIGHT[RIGHT[l]] }
 
   RANGE =
-    Z[-> f {
-      -> m { -> n {
-        IF[IS_LESS_OR_EQUAL[m][n]][
-          -> x {
-            UNSHIFT[f[INCREMENT[m]][n]][m][x]
-          }
-        ][
-          EMPTY
-        ]
-      } }
-    }]
+    defer do
+      Z[-> f {
+        -> m { -> n {
+          IF[IS_LESS_OR_EQUAL[m][n]][
+            -> x {
+              UNSHIFT[f[INCREMENT[m]][n]][m][x]
+            }
+          ][
+            EMPTY
+          ]
+        } }
+      }]
+    end
 
   FOLD =
-    Z[-> f {
-      -> l { -> x { -> g {
-        IF[IS_EMPTY[l]][
-          x
-        ][
-          -> y {
-            g[f[REST[l]][x][g]][FIRST[l]][y]
-          }
-        ]
-      } } }
-    }]
+    defer do
+      Z[-> f {
+        -> l { -> x { -> g {
+          IF[IS_EMPTY[l]][
+            x
+          ][
+            -> y {
+              g[f[REST[l]][x][g]][FIRST[l]][y]
+            }
+          ]
+        } } }
+      }]
+    end
 
   MAP =
     -> k { -> f {
@@ -99,27 +118,29 @@ module Nothing
 
   # https://tomstu.art/programming-with-nothing#strings-briefly
 
-  TEN = MULTIPLY[TWO][FIVE]
+  TEN = defer { MULTIPLY[TWO][FIVE] }
   B   = TEN
-  F   = INCREMENT[B]
-  I   = INCREMENT[F]
-  U   = INCREMENT[I]
-  ZED = INCREMENT[U]
+  F   = defer { INCREMENT[B] }
+  I   = defer { INCREMENT[F] }
+  U   = defer { INCREMENT[I] }
+  ZED = defer { INCREMENT[U] }
 
-  FIZZ      = UNSHIFT[UNSHIFT[UNSHIFT[UNSHIFT[EMPTY][ZED]][ZED]][I]][F]
-  BUZZ      = UNSHIFT[UNSHIFT[UNSHIFT[UNSHIFT[EMPTY][ZED]][ZED]][U]][B]
-  FIZZ_BUZZ = UNSHIFT[UNSHIFT[UNSHIFT[UNSHIFT[BUZZ][ZED]][ZED]][I]][F]
+  FIZZ      = defer { UNSHIFT[UNSHIFT[UNSHIFT[UNSHIFT[EMPTY][ZED]][ZED]][I]][F] }
+  BUZZ      = defer { UNSHIFT[UNSHIFT[UNSHIFT[UNSHIFT[EMPTY][ZED]][ZED]][U]][B] }
+  FIZZ_BUZZ = defer { UNSHIFT[UNSHIFT[UNSHIFT[UNSHIFT[BUZZ][ZED]][ZED]][I]][F] }
 
   DIV =
-    Z[-> f { -> m { -> n {
-      IF[IS_LESS_OR_EQUAL[n][m]][
-        -> x {
-          INCREMENT[f[SUBTRACT[m][n]][n]][x]
-        }
-      ][
-        ZERO
-      ]
-    } } }]
+    defer do
+      Z[-> f { -> m { -> n {
+        IF[IS_LESS_OR_EQUAL[n][m]][
+          -> x {
+            INCREMENT[f[SUBTRACT[m][n]][n]][x]
+          }
+        ][
+          ZERO
+        ]
+      } } }]
+    end
 
   PUSH =
     -> l {
@@ -129,28 +150,32 @@ module Nothing
     }
 
   TO_DIGITS =
-    Z[-> f { -> n { PUSH[
-      IF[IS_LESS_OR_EQUAL[n][DECREMENT[TEN]]][
-        EMPTY
-      ][
-        -> x {
-          f[DIV[n][TEN]][x]
-        }
-      ]
-    ][MOD[n][TEN]] } }]
+    defer do
+      Z[-> f { -> n { PUSH[
+        IF[IS_LESS_OR_EQUAL[n][DECREMENT[TEN]]][
+          EMPTY
+        ][
+          -> x {
+            f[DIV[n][TEN]][x]
+          }
+        ]
+      ][MOD[n][TEN]] } }]
+    end
 
   # https://tomstu.art/programming-with-nothing#victory
 
   FIZZBUZZ =
-    MAP[RANGE[ONE][HUNDRED]][-> n {
-      IF[IS_ZERO[MOD[n][FIFTEEN]]][
-        FIZZ_BUZZ
-      ][IF[IS_ZERO[MOD[n][THREE]]][
-        FIZZ
-      ][IF[IS_ZERO[MOD[n][FIVE]]][
-        BUZZ
-      ][
-        TO_DIGITS[n]
-      ]]]
-    }]
+    defer do
+      MAP[RANGE[ONE][HUNDRED]][-> n {
+        IF[IS_ZERO[MOD[n][FIFTEEN]]][
+          FIZZ_BUZZ
+        ][IF[IS_ZERO[MOD[n][THREE]]][
+          FIZZ
+        ][IF[IS_ZERO[MOD[n][FIVE]]][
+          BUZZ
+        ][
+          TO_DIGITS[n]
+        ]]]
+      }]
+    end
 end
