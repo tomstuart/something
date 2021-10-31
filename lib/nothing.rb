@@ -178,4 +178,45 @@ module Nothing
         ]]]
       }]
     end
+
+  module Translation
+    def to_integer(n)
+      n[:succ.to_proc][0]
+    end
+
+    def from_integer(integer)
+      integer.times.inject(ZERO) { |n| INCREMENT[n] }
+    end
+
+    def to_boolean(b)
+      IF[b][true][false]
+    end
+
+    def from_boolean(boolean)
+      boolean ? TRUE : FALSE
+    end
+
+    def each_element(l)
+      return enum_for(__method__, l) unless block_given?
+
+      until to_boolean(IS_EMPTY[l])
+        yield FIRST[l]
+        l = REST[l]
+      end
+    end
+
+    def to_array(l)
+      each_element(l).entries
+    end
+
+    def from_array(array)
+      array.reverse_each.inject(EMPTY) { |l, x| UNSHIFT[l][x] }
+    end
+
+    CHARSET = '0123456789BFiuz' # for encoding digits, “Fizz” and “Buzz”
+
+    def to_string(s)
+      each_element(s).map { |c| CHARSET.slice(to_integer(c)) }.join
+    end
+  end
 end
