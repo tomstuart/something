@@ -8,4 +8,5 @@ jobs:
       - uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
+      - run: make
       - run: bundle exec rspec
