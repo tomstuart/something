@@ -1,4 +1,4 @@
-all: lib/something/native_vm/interpreted.so
+all: lib/something/native_vm/interpreted.so lib/something/native_vm/compiled.so
 
 %.so: %.c
 	$(CC) -shared -o $@ $<
